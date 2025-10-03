@@ -98,7 +98,7 @@
 
 			[Field: CNT_voucher_type]
 				
-				Set as: if $$IsContra:$VoucherTypeName then "Contra Entry" else if $$IsJournal:$VoucherTypeName then "Journal Entry" else "Journal Entry"
+				Set as: if $$IsDebitNote:$VouchertypeName then "Debit Note" else if $$IsContra:$VoucherTypeName then "Contra Entry" else if $$IsJournal:$VoucherTypeName then "Journal Entry" else "Journal Entry"
 				JSONTag: "voucher_type"
 				
 			[Field: CNT_company]
@@ -148,12 +148,16 @@
 			[Field: CNT_Account]
 
 				JSONTag: "account"
-				Set as: $LedgerName +  " - " + @@EnableERPNextCmpAbbr
+				Set as: if $$IsLedOfGrp:$LedgerName:$$GroupSundryDebtors then "Debtors" +  " - " + @@EnableERPNextCmpAbbr else +
+						if $$IsLedOfGrp:$LedgerName:$$GroupSundryCreditors then "Creditors" +  " - " + @@EnableERPNextCmpAbbr +
+						else $LedgerName +  " - " + @@EnableERPNextCmpAbbr
+		
 
 			[Field: CNT_account_currency]
 
 				JSONTag: "account_currency"
 				Set as: "INR"
+				Invisible: Yes
 
 			[Field: CNT_cost_center]
 				
@@ -164,6 +168,7 @@
 
 				JSONTag: "exchange_rate"
 				Set as: "1"
+				Invisible: Yes
 
 			[Field: CNT_debit_in_account_currency]
 
@@ -200,12 +205,12 @@
 			[Field: CNT_party]
 
 				JSONTag: "party"
-				Set as : If ($$IsLedOfGrp:$LedgerName:$$GroupSundryDebtors or $$IsLedOfGrp:$LedgerName:$$GroupSundryCreditors) then $LedgerName else ""
+				Set as : If ($$IsLedOfGrp:$LedgerName:$$GroupSundryDebtors or $$IsLedOfGrp:$LedgerName:$$GroupSundryCreditors) then $LedgerCode:Ledger:$LedgerName else ""
 
 
 [Collection: SEND_Contra_Tally]
 
-	Collection:  SEND_JVPayment_Tally, SEND_Contra_Tally1, SEND_Journal_Tally, SEND_JVReceipt_Tally
+	Collection:  SEND_JVPayment_Tally, SEND_Contra_Tally1, SEND_Journal_Tally, SEND_JVReceipt_Tally, SEND_JVDebitNote_Tally
 	
 [Collection: SEND_Contra_Tally1]
 
@@ -261,6 +266,20 @@
 	Fetch: InventoryEntries.StockItemName, InventoryEntries.BilledQty, InventoryEntries.Rate, InventoryEntries.Amount
 
 	Filter: IsExpensePymt
+	
+	Filter: NonCancelled
+	Filter: NonOptional
+	Filter: NonZeroEntries
+
+[Collection: SEND_JVDebitNote_Tally]
+
+	Type		: Vouchers : VoucherType
+	Child Of	: $$VchTypeDebitNote
+	Belongs To	: Yes
+	Filter 		: WebStatus
+	Fetch: VoucherTypeName, PartyLedgerNAme ,Date, Narration, Amount, WebStatus_DocName
+	Fetch: LedgerEntries.LedgerName, LedgerEntries.Amount
+	Fetch: InventoryEntries.StockItemName, InventoryEntries.BilledQty, InventoryEntries.Rate, InventoryEntries.Amount
 	
 	Filter: NonCancelled
 	Filter: NonOptional

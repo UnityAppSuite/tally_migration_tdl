@@ -226,6 +226,7 @@
 
 		Item: Blank
 		Indent: "Opening Balances"
+		Item: Account Opening : Call: SEND_AccountOpening_Start
 		Item: Customer Opening : Call: SEND_CustomerOp_Start
 		Item: Supplier Opening : Call: SEND_SupplierOp_Start
 
@@ -267,6 +268,8 @@
 [Include: send\07_SEND_Item.txt]
 [Include: send\08_SEND_Warehouse.txt]
 [Include: send\Reset.txt]
+
+[Include: send\08_SEND_AccountOpening.txt]
 
 [Include: send\09_SEND_CustomerOpeningInvoices.txt]
 [Include: send\09_SEND_SupplierOpeningInvoices.txt]

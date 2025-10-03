@@ -89,7 +89,7 @@
   			JSONTag: "data"
 			Empty: $$Line > @@RecordsLimit	
 ;			Explode: PY_ledgers
-			Explode: PY_Bills
+;			Explode: PY_Bills ;;; disabled becuase improper reco in tally
 
 			[Field: PY_doctype]
 				
@@ -123,18 +123,20 @@
 				
 			[Field: PY_party]
 				
-				Set as: $PY_Party
+				Set as: $LedgerCode:Ledger:$PY_Party
 				JSONTag: "party"
 				
 			[Field: PY_paid_from]
 
 				Set as: if $$IsPayment:$VoucherTypeName then $PY_cash + " - " + @@EnableERPNextCmpAbbr else $PY_party + " - " + @@EnableERPNextCmpAbbr
 				JSONTag: "paid_from"
+				Invisible: $$IsReceipt:$VoucherTypeName
 
 			[Field: PY_paid_to]
 
 				Set as: if $$IsPayment:$VoucherTypeName then $PY_party + " - " + @@EnableERPNextCmpAbbr else $PY_cash + " - " + @@EnableERPNextCmpAbbr 
 				JSONTag: "paid_to"
+				Invisible: $$IsPayment:$VoucherTypeName
 
 			[Field: PY_paid_amount]
 
@@ -265,9 +267,15 @@
 		
 		[Line: PY_Bills]
 			
-			Field: PY_Bills_allocated_amount, PY_Bills_due_date, PY_Bills_reference_doctype, PY_Bills_reference_name, PY_Bills_total_amount
+			Field: PY_Bills_Billtype, PY_Bills_allocated_amount, PY_Bills_due_date, PY_Bills_reference_doctype, PY_Bills_reference_name, PY_Bills_total_amount
 			JSONTag: "references"
+			Empty : $BillType in ("New Ref", "Advance", "On Account")
 			
+			[Field: PY_Bills_Billtype]
+				
+				JSONTag:"bill_type"
+				Set as: $Billtype
+
 			[Field: PY_Bills_allocated_amount]
 				
 				Type: Number
@@ -302,6 +310,7 @@
 			Source Collection: Default
 			Walk: LedgerEntries, BillAllocations
 			Compute: amount				: $Amount
+			Compute: BillType				: $BillType
 			Compute: BillCreditPeriod	: $BillCreditPeriod
 			Compute: Name				: $Name
 			Compute: bill_date			: $billdate
@@ -346,8 +355,8 @@
 
 [Collection: SEND_PymtRcpt_Tally]
 
-;	Collection: SEND_PymtRcpt_Tally1, SEND_Receipt_Tally
-	Collection: SEND_Receipt_Tally
+	Collection: SEND_PymtRcpt_Tally1, SEND_Receipt_Tally
+;	Collection: SEND_Receipt_Tally
 	
 [Collection: SEND_PymtRcpt_Tally1]
 
@@ -380,11 +389,11 @@
 	Filter: NonOptional
 	Filter: NonZeroEntries
 
-	Filter: MyDebugFilter
-	
-		[System: Formula]
-			
-			MyDebugFilter: $PartyLedgerName = "Comet Electricals, Raipur"
+;	Filter: MyDebugFilter
+;	
+;		[System: Formula]
+;			
+;			MyDebugFilter: $PartyLedgerName = "Comet Electricals, Raipur"
 
 [#Object: Voucher]
 	

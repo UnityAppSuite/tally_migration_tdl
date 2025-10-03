@@ -49,7 +49,10 @@
 				
 			[Table: List of Exp Objects]
 				
-				List: "Account", "Customer","Supplier","Supplier Group", "Customer Group", "Stock Item", "Group", "Stock Group", "Voucher", "Godown", "All Sales Vouchers", "All Purchase Vouchers", "All Stock Vouchers", "Customer Opening", "Supplier Opening"
+				List: "Account", "Customer","Supplier","Supplier Group", "Customer Group", "Stock Item", "Group", +
+					"Stock Group", "Voucher", "Godown", "All Sales Vouchers", +
+					"All Purchase Vouchers", "All Stock Vouchers", "All Payment/Receipt Vouchers", "All Contra and Journal Vouchers", "Customer Opening", "Supplier Opening",+
+					"Account Opening"
 				Full Height: Yes
 				Align: Center
 				Format: $$Name, 30
@@ -101,7 +104,7 @@
 			Field: ERPException
 			Right Field: ERPExcWebStatus, ERPExcWebStatus_Message
 			Right Field: ERPExcWebStatus_DocName
-			Option: ERPException Vouchers : ##vObjectType IN ("Voucher", "All Sales Vouchers", "All Purchase Vouchers", "All Stock Vouchers")
+			Option: ERPException Vouchers : ##vObjectType IN ("Voucher", "All Sales Vouchers", "All Purchase Vouchers", "All Stock Vouchers", "All Payment/Receipt Vouchers", "All Contra and Journal Vouchers")
 
 			[Field: ERPException]
 				
@@ -109,6 +112,7 @@
 				Set as: $Name
 				Full Width: Yes
 				Option: ERPException Customer : ##vObjectType = "Customer" or ##vObjectType = "Customer Opening" or ##vObjectType = "Supplier" or ##vObjectType = "Supplier Opening" or ##vObjectType = "Account" 
+				Option: ERPException Account : ##vObjectType = "Account Opening"
 				Option: ERPException StockItem : ##vObjectType = "StockItem"
 				Option: ERPException StockGroup : ##vObjectType = "Stock Group"
 				Option: ERPException CustomerGroup : ##vObjectType = "Customer Group" or ##vObjectType = "Supplier Group"
@@ -186,12 +190,12 @@
 			[Field: ERPExcWebStatus]
 
 				Use: Short Name Field 
-				Set as: if ##vObjectType in ("Customer Opening", "Supplier Opening") then $Bill_Status else $WebStatus
+				Set as: if ##vObjectType in ("Customer Opening", "Supplier Opening") then $Bill_Status else if ##vObjectType = "Account Opening" then $Acc_Status else $WebStatus
 				
 			[Field: ERPExcWebStatus_Message]
 				
 				Use: Narration Field 
-				Set as: if ##vObjectType in ("Customer Opening", "Supplier Opening") then $Bill_Message else $WebStatus_Message
+				Set as: if ##vObjectType in ("Customer Opening", "Supplier Opening") then $Bill_Message else if ##vObjectType = "Account Opening" then $ACC_Message else $WebStatus_Message
 				Lines: 0
 				Full Width: Yes
 
@@ -206,6 +210,7 @@
 		Add : Option: ERPException Account 			: ##vObjectType = "Account"
 		Add : Option: ERPException Customer 		: ##vObjectType = "Customer"
 		Add : Option: ERPException Customer Opening	: ##vObjectType = "Customer Opening"
+		Add : Option: ERPException Account Opening	: ##vObjectType = "Account Opening"
 		Add : Option: ERPException Supplier 		: ##vObjectType = "Supplier"
 		Add : Option: ERPException Supplier Opening : ##vObjectType = "Supplier Opening"
 		Add : Option: ERPException CustomerGroup 	: ##vObjectType = "Customer Group"
@@ -213,7 +218,7 @@
 		Add : Option: ERPException StockGroup 		: ##vObjectType = "Stock Group"
 		Add : Option: ERPException StockItem 		: ##vObjectType = "StockItem"
 		Add : Option: ERPException Godown	 		: ##vObjectType = "Godown"
-		Add : Option: ERPException Vouchers 		: ##vObjectType IN ("Voucher", "All Sales Vouchers", "All Purchase Vouchers", "All Stock Vouchers")
+		Add : Option: ERPException Vouchers 		: ##vObjectType IN ("Voucher", "All Sales Vouchers", "All Purchase Vouchers", "All Stock Vouchers", "All Payment/Receipt Vouchers", "All Contra and Journal Vouchers")
 					
 		[!Collection: ERPException Account]
 			
@@ -231,6 +236,14 @@
 			Belongs To: Yes
 			Fetch: Name, WebStatus, WebStatus_Message, WebStatus_DocName
 			Filter: WebStatus_Error
+			
+		[!Collection: ERPException Account Opening]
+			
+			Type: Ledger
+			Belongs To: Yes
+			Fetch: Name, WebStatus, WebStatus_Message, WebStatus_DocName
+			Filter: WebStatus_Error_ACC, ACC_NonEmpty, ACC_NonCreditors, ACC_NonDebtors
+			Filter: ACC_NonDirectIncomes, ACC_NonDirectExpenses, ACC_NonInDirectIncomes, ACC_NonInDirectExpenses
 			
 		[!Collection: ERPException Customer Opening]
 			
@@ -302,16 +315,18 @@
 			Filter: NonOptional
 			Filter: WebStatus_Error
 			
-
 		[System: Formula]
 			
 			WebStatus_Error : if ##ERPExceptionShowAll then Yes else $WebStatus_Message Not in  ("Success", "Already Exists")
 			ERPExceptionVchTypeFilter : if ##vObjectType = "All Sales Vouchers" then $$IsSales:$VoucherTypeNAme else +
 										if ##vObjectType = "All Purchase Vouchers" then $$IsPurchase:$VoucherTypeNAme else +
 										if ##vObjectType = "All Stock Vouchers" then $$IsStockJrnl:$VoucherTypeNAme else +
+										if ##vObjectType = "All Payment/Receipt Vouchers" then ($$IsPayment:$VoucherTypeNAme or $$IsReceipt:$VoucherTypeNAme) and not $IsExpensePymt else +
+										if ##vObjectType = "All Contra and Journal Vouchers" then $$IsReceipt:$VoucherTypeNAme or $$IsContra:$VoucherTypeName or $$IsJournal:$VoucherTypeName or $$IsDebitNote:$VoucherTypeName or ($$IsPayment:$VoucherTypeNAme and $IsExpensePymt) else +
 										$VoucherTypeName = ##vVoucherType
 
 			WebStatus_Error_Bill : if ##ERPExceptionShowAll then Yes else $Bill_Message Not in  ("Success", "Already Exists")
+			WebStatus_Error_ACC : if ##ERPExceptionShowAll then Yes else $ACC_Message Not in  ("Success", "Already Exists")
 ;; Show All button
 
 [Variable: ERPExceptionShowAll]
@@ -414,13 +429,18 @@
 		21 : 			Set : VID : "ID:"+$$String:$Masterid
 		35 : 				SET TARGET
 		36 :				If: ##vObjectType in ("Customer Opening", "Supplier Opening")
-		37 : 					SET VALUE: Bill_Status 		 : "Reset"
+		37 : 					SET VALUE: Bill_Status 	: "Reset"
 		38 : 					Set Value: Bill_message : ""
-		40 :				Else
-		41 : 					SET VALUE: WebStatus 		 : "Reset"
-		42 : 					Set Value: WebStatus_message : ""
-		43 : 					Set Value: WebStatus_DocName : ""
-		44 :				End if 
+		40 :				else 
+		41 :				If: ##vObjectType in ("Account Opening")
+		42 : 					SET VALUE: ACC_Status  : "Reset"
+		43 : 					Set Value: ACC_message : ""
+		44 :				else
+		45 : 					SET VALUE: WebStatus 		 : "Reset"
+		46 : 					Set Value: WebStatus_message : ""
+		47 : 					Set Value: WebStatus_DocName : ""
+		48 :				End if 
+		49 :				End if 
 		55 : 				ACCEPT ALTER
 		61 : 			Increment : Counter
 		62 : 			Show Progress : ##Counter

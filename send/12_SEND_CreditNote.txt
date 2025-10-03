@@ -104,7 +104,7 @@
 
 			[Field: CN_customer]
 				
-				Set as:$PartyLedgerName
+				Set as:if $$IsEmpty:($LedgerCode:Ledger:$PartyLedgerName) then $PartyLedgerName else $LedgerCode:Ledger:$PartyLedgerName
 				JSONTag: "customer"
 				
 			[Field: CN_company]
@@ -133,6 +133,7 @@
 				
 				Set as: "INR"
 				JSONTag: "currency"
+				Invisible:  Yes
 
 			[Field: CN_base_total]
 				
@@ -182,9 +183,8 @@
 
 			[Field: CN_update_stock]
 				
-				Set as: 0
+				Set as: @@EnableERPNextUpdateStock
 				JSONTag: "update_stock"
-				Invisible: Yes
 
 			[Field: CN_is_return]
 				
@@ -355,7 +355,7 @@
 			[Field: CN_item_group]
 				
 				JSONTag: "item_group"
-				Set as: $Parent:StockItem:$StockItemName
+				Set as: if $$SysName:Primary = $Parent:StockItem:$StockItemName then "All Item Groups" else $Parent:StockItem:$StockItemName
 
 			[Field: CN_qty]
 

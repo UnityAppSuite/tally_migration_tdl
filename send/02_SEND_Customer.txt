@@ -414,7 +414,7 @@
 
 [#Form: Ledger]
 	
-	Option: LedgerWebStatus 
+	Option: LedgerWebStatus
 
 	[!Form : LedgerWebStatus]
 		
@@ -426,7 +426,9 @@
 	
 	[Line : WebStatus]
 		
-		Field : Short Prompt,WebStatus ,WebStatus1,WebStatusId, WebStatus_Bill, WebStatus_BillX, WebStatus_Bill_Message, WebStatus_Bill_MessageX
+		Field : Short Prompt,WebStatus ,WebStatus1,WebStatusId, +
+				WebStatus_Bill, WebStatus_BillX, WebStatus_Bill_Message, WebStatus_Bill_MessageX,+
+				WebStatus_ACC, WebStatus_ACCX, WebStatus_ACC_Message, WebStatus_ACC_MessageX
 		Local : Field : ShortPrompt : Set as : "Web Status : "
 		
 		[Field : WebStatus]
@@ -478,6 +480,36 @@
 			Set as: If $$InAlterMode or $$InDuplicateMode then "Altered in Tally" else if $$InCreateMode then "Altered in Tally" else $Bill_Message
 			Set Always: Yes
 			Invisible: Yes
+
+;;; Account Opening
+		[Field: WebStatus_ACC]
+			
+			Use: Short Name Field 
+			Storage: ACC_Status
+			Set as : #WebStatus_ACCX
+			Set Always: Yes
+			Case: Normal
+			
+		[Field: WebStatus_ACCX]
+			
+			Use : Name Field
+			Set as : If $$InAlterMode or $$InDuplicateMode then "0" else if $$InCreateMode then "0" else $ACC_Status
+			Invisible : Yes
+			
+		[Field: WebStatus_ACC_Message]
+			
+			Use: Name Field 
+			Storage: ACC_Message
+			Set as: #WebStatus_ACC_MessageX
+			Set Always: Yes
+			
+		[Field: WebStatus_ACC_MessageX]
+			
+			Use: Name Field 
+			Set as: If $$InAlterMode or $$InDuplicateMode then "Altered in Tally" else if $$InCreateMode then "Altered in Tally" else $ACC_Message
+			Set Always: Yes
+			Invisible: Yes
+
 
 	[Line: WebStatus_Message]
 		
