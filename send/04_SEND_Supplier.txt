@@ -82,7 +82,7 @@
 		
 		[Line: SEND_Supplier]
 			
-			Field: SEND_Supplier_name, SEND_Supplier_type, SEND_Supplier_dotype, SEND_Supplier_group
+			Field: SEND_Supplier_code, SEND_Supplier_name, SEND_Supplier_type, SEND_Supplier_dotype, SEND_Supplier_group
 			Field: SEND_Supplier_gst_category,SEND_Supplier_pan, SEND_Supplier_territory, SEND_Supplier_tax_category			
 ;			Field: SEND_Supplier_default_currency;,SEND_Supplier_default_price_list
 			
@@ -101,6 +101,11 @@
 			
 			Local: Line: SEND_Customer_accounts : Local: Field: SEND_CA_account: Set as: "Creditors" + " - " + @@EnableERPNextCmpAbbr
 			
+			[Field: SEND_Supplier_code]
+				
+				Set as: $LedgerCode
+				JSONTag: "customer_code"
+
 			[Field: SEND_Supplier_name]
 				
 				Set as: $Name
@@ -134,7 +139,7 @@
 			[Field: SEND_Supplier_pan]
 				
 				Set as: $IncomeTaxNumber
-				JSONTag : "pan"
+				JSONTag : "tax_id"
 
 			[Field: SEND_Supplier_territory]
 				
