@@ -81,7 +81,7 @@
 		
 		[Line: SEND_Customer]
 			
-			Field: SEND_Customer_name, SEND_Customer_type, SEND_Customer_dotype, SEND_Customer_group
+			Field: SEND_Customer_code, SEND_Customer_name, SEND_Customer_type, SEND_Customer_dotype, SEND_Customer_group
 			Field: SEND_Customer_gst_category,SEND_Customer_pan, SEND_Customer_territory, SEND_Customer_tax_category			
 			Field: SEND_Customer_so_required, SEND_Customer_dn_required,SEND_Customer_default_price_list
 			Field: SEND_Customer_first_deal_by, SEND_Customer_referred_by,SEND_Customer_permitted_by,SEND_Customer_payment_responsibility
@@ -103,6 +103,12 @@
 			
 			;SEND_Customer_default_currency
 			
+
+			[Field: SEND_Customer_code]
+				
+				Set as: $LedgerCode
+				JSONTag: "customer_code"
+				
 			[Field: SEND_Customer_name]
 				
 				Set as: $Name
@@ -136,7 +142,7 @@
 			[Field: SEND_Customer_pan]
 				
 				Set as: $IncomeTaxNumber
-				JSONTag : "pan"
+				JSONTag : "tax_id"
 
 			[Field: SEND_Customer_territory]
 				
@@ -154,12 +160,14 @@
 				Set as: 1
 				JSONTag : "so_required"
 				Type: Number
+				Invisible: Yes
 
 			[Field: SEND_Customer_dn_required]
 				
 				Set as: 1
 				JSONTag : "dn_required"
 				Type: Number
+				Invisible: Yes
 
 ;			[Field: SEND_Customer_default_currency]
 ;				
@@ -170,11 +178,13 @@
 				
 				Set as: if $$IsEmpty:$PriceLevel then "Standard Selling" else $PriceLevel
 				JSONTag : "default_price_list"
+				Invisible: Yes
 
 			[Field: SEND_Customer_first_deal_by]
 				
 				Set as: $LedFirstDealBy
 				JSONTag : "first_deal_by"
+				Invisible : Yes
 
 			[Field: SEND_Customer_referred_by]
 				
@@ -196,6 +206,7 @@
 				Set as: $$Number:$CreditLimit
 				JSONTag : "credit_limit"
 				Type: Number
+				Invisible: Yes
 
 			[Field: SEND_Customer_add1]
 
