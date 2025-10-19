@@ -104,59 +104,19 @@
 
 [Collection: SEND_Account_Tally]
 
-	Collection: SEND_Account_Level1, SEND_Account_Level2, SEND_Account_Level3, SEND_Account_Level4, SEND_Account_Level5
-
-[Collection: SEND_Account_Level1]
-
 	Type: Ledger
 	Belongs To: Yes
-	Filter : WebStatus, Level1Filter
+	Filter : WebStatus
 	Fetch: Name, Parent
 	Filter: NonDebtors, NonCreditors
-
-[Collection: SEND_Account_Level2]
-
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, Level2Filter
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-
-[Collection: SEND_Account_Level3]
-
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, Level3Filter
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-
-[Collection: SEND_Account_Level4]
-
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, Level4Filter
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-
-[Collection: SEND_Account_Level5]
-
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, Level5Filter
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
+	Sort: ParentDepth, Name
 
 	[System: Formula]
 
 		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
 		NonDebtors : Not $$IsGroupSundryDebtors:$Parent
 		NonCreditors : Not $$IsGroupSundryCreditors:$Parent
-
-		Level1Filter : $$IsEmpty:$Parent:Group:$Parent
-		Level2Filter : Not $$IsEmpty:$Parent:Group:$Parent AND $$IsEmpty:$Parent:Group:$Parent:Group:$Parent
-		Level3Filter : Not $$IsEmpty:$Parent:Group:$Parent:Group:$Parent AND $$IsEmpty:$Parent:Group:$Parent:Group:$Parent:Group:$Parent
-		Level4Filter : Not $$IsEmpty:$Parent:Group:$Parent:Group:$Parent:Group:$Parent AND $$IsEmpty:$Parent:Group:$Parent:Group:$Parent:Group:$Parent:Group:$Parent
-		Level5Filter : Not $$IsEmpty:$Parent:Group:$Parent:Group:$Parent:Group:$Parent:Group:$Parent
+		ParentDepth : $$CountChar:$Parent:":"
 
 ;	Filter: Customer_DebugFilter
 ;	
