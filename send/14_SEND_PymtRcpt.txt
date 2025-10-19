@@ -1,8 +1,9 @@
 ;; Shivgoraksh
+;; Batched Payment Receipt Send - Max 10 records per batch
 
 
 [Collection: SEND_PymtRcpt]
-		
+
 	Export Header	: "Accept: application/json"
 	Export Header	: "Accept-Charset: utf-8"
 	Export Header	: "Authorization: " + "token " + @@AuthToken
@@ -19,7 +20,7 @@
 ;	Add: Item: Send PymtRcpt Cont : Call: SEND_PymtRcpt_Start
 
 	[Function: SEND_PymtRcpt_Start]
-		
+
 		10 : Start Timer: SEND_PymtRcpt_Timer : 1
 		
 	[System: Events]
@@ -31,35 +32,41 @@
 	Variable : vName  : String
 	Variable: vMessage : String
 	Variable: vDocName : String
-	Variable: vStatus :Logical
+	Variable: vStatus : Logical
+	Variable : vBatchCount : Number: 0
+	Variable : vTotalCount : Number: $$NumItems:SEND_PymtRcpt_Tally
 
 	01 : Log: "SEND_PymtRcpt function called "
-	02 : Log: $$NumItems:SEND_PymtRcpt_Tally
-	
-	06 : Do If: ($$NumItems:SEND_PymtRcpt_Tally = 0) :  Stop Timer: SEND_PymtRcpt_Timer
-	07 : Do If: ($$NumItems:SEND_PymtRcpt_Tally = 0) :  Return
+	02 : Log: "Total Payment/Receipt vouchers: " + $$String:##vTotalCount
 
-	08 : Stop Timer: SEND_PymtRcpt_Timer
-	09 : Start Progress: 1 : "Sending Payment / Receipt " : ""
+	06 : Do If: (##vTotalCount = 0) :  Stop Timer: SEND_PymtRcpt_Timer
+	07 : Do If: (##vTotalCount = 0) :  Log: "No payment/receipt vouchers to send"
+	08 : Do If: (##vTotalCount = 0) :  Return
 
-	10 : Walk Collection: SEND_PymtRcpt
+	09 : Stop Timer: SEND_PymtRcpt_Timer
+	10 : Start Progress: ##vTotalCount : "Sending Payment/Receipt (Max 10 per batch)" : ""
+
+	11 : Walk Collection: SEND_PymtRcpt
 	12 : 	Set: vStatus : $Status
-	20 : 	If: $Status
-	21 :	Start Batch Post
-	25 : 		Walk Collection: data
-	26 : 		Log: $name
-	28 : 		Set: vName : "ID:"+$name
-	28a:		Set: vDocName : $docname
-	29 : 		Set: vMessage : $message
-	30 : 			Modify Object: (Voucher, ##vName).WebStatus[1].WebStatus : @@ERPNextResetFlag
-	32 : 			Modify Object: (Voucher, ##vName).WebStatus_Message[1].WebStatus_Message : ##vMessage
-	33 : 			Modify Object: (Voucher, ##vName).WebStatus_DocName[1].WebStatus_DocName : ##vDocName
-	40 :		End Walk
-	42 :	End Batch Post
-	45 : 	End If
-	60 : End Walk
-	
-	65 : Do If: ($$NumItems:SEND_PymtRcpt_Tally > 0 and Not $$IsEmpty:##vStatus) :  Start Timer: SEND_PymtRcpt_Timer : 1
+	13 : 	If: Not $$IsEmpty:##vStatus
+	14 :		Start Batch Post
+	15 : 		Walk Collection: data
+	16 : 			Increment: vBatchCount
+	17 : 			Log: "Processing [" + $$String:##vBatchCount + "]: " + $name
+	18 : 			Set: vName : "ID:"+$name
+	19 :			Set: vDocName : $docname
+	20 : 			Set: vMessage : $message
+	21 : 			Modify Object: (Voucher, ##vName).WebStatus[1].WebStatus : ""
+	22 : 			Modify Object: (Voucher, ##vName).WebStatus_Message[1].WebStatus_Message : ##vMessage
+	23 : 			Modify Object: (Voucher, ##vName).WebStatus_DocName[1].WebStatus_DocName : ##vDocName
+	24 :			Show Progress: ##vBatchCount
+	25 :		End Walk
+	26 :		End Batch Post
+	27 : 	End If
+	28 : End Walk
+
+	29 : Log: "Batch complete. Processed: " + $$String:##vBatchCount + " vouchers"
+	30 : Do If: ($$NumItems:SEND_PymtRcpt_Tally > 0) :  Start Timer: SEND_PymtRcpt_Timer : 2
 
 ;[#Menu: Gateway of Tally]
 ;	
@@ -87,7 +94,7 @@
 			Field: PY_reference_no, PY_reference_date
 			Field: PY_MasterId, PY_webstatus_docname, PY_tally_voucherno
   			JSONTag: "data"
-			Empty: $$Line > @@RecordsLimit	
+			Empty: $$Line > 10	
 ;			Explode: PY_ledgers
 ;			Explode: PY_Bills ;;; disabled becuase improper reco in tally
 
@@ -373,6 +380,10 @@
 	Filter: NonOptional
 	Filter: NonZeroEntries
 
+	[System: Formula]
+
+		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
+
 [Collection: SEND_Receipt_Tally]
 
 	Type		: Vouchers : VoucherType
@@ -384,10 +395,14 @@
 	Fetch: LedgerEntries.BillAllocations.*
 	Fetch: InventoryEntries.StockItemName, InventoryEntries.BilledQty, InventoryEntries.Rate, InventoryEntries.Amount
 	Filter: IsNonExpensePymt
-	
+
 	Filter: NonCancelled
 	Filter: NonOptional
 	Filter: NonZeroEntries
+
+	[System: Formula]
+
+		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
 
 ;	Filter: MyDebugFilter
 ;	
