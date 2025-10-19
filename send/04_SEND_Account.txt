@@ -38,11 +38,14 @@
 	10 : Start Progress: ##vTotalCount : "Sending Accounts (Max 10 per batch)" : ""
 
 	10a: Log: "=== PREPARING BATCH ==="
+	10a1: File Write: "account_log.txt" : "=== PREPARING BATCH ===" + $$NewLine
 	10b: Walk Collection: SEND_Account_Tally
 	10c: 	Log: "Queue: " + $Name + " (Parent: " + $Parent + ")"
+	10c1: 	File Write: "account_log.txt" : "Queue: " + $Name + " (Parent: " + $Parent + ")" + $$NewLine
 	10d: 	Break If: $$Line >= 10
 	10e: End Walk
 	10f: Log: "=== SENDING BATCH ==="
+	10f1: File Write: "account_log.txt" : "=== SENDING BATCH ===" + $$NewLine
 
 	11 : Walk Collection: SEND_Account
 
