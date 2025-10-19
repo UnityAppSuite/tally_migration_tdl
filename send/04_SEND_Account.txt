@@ -109,14 +109,13 @@
 	Filter : WebStatus
 	Fetch: Name, Parent
 	Filter: NonDebtors, NonCreditors
-	Sort: ParentDepth, Name
+	Sort: Parent, Name
 
 	[System: Formula]
 
 		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
 		NonDebtors : Not $$IsGroupSundryDebtors:$Parent
 		NonCreditors : Not $$IsGroupSundryCreditors:$Parent
-		ParentDepth : $$CountChar:$Parent:":"
 
 ;	Filter: Customer_DebugFilter
 ;	
