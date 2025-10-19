@@ -47,7 +47,7 @@
 	17 : 			Log: "Processing [" + $$String:##vBatchCount + "]: " + $name
 	18 : 			Set: vName : $name
 	19 : 			Set: vMessage : $message
-	20 : 			Modify Object: (Ledger, ##vName).WebStatus[1].WebStatus : @@ERPNextResetFlag
+	20 : 			Modify Object: (Ledger, ##vName).WebStatus[1].WebStatus : ""
 	21 :			Modify Object: (Ledger, ##vName).WebStatus_message[1].WebStatus_message : ##vMessage
 	22 :			Show Progress: ##vBatchCount
 	23 :		End Walk
@@ -103,15 +103,16 @@
 				JSONTag : "parent_account"
 
 [Collection: SEND_Account_Tally]
-	
+
 	Type: Ledger
 	Belongs To: Yes
 	Filter : WebStatus
 	Fetch: Name, Parent
 	Filter: NonDebtors, NonCreditors
-	
+
 	[System: Formula]
-		
+
+		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
 		NonDebtors : Not $$IsGroupSundryDebtors:$Parent
 		NonCreditors : Not $$IsGroupSundryCreditors:$Parent
 
