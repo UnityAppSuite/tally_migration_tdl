@@ -27,15 +27,15 @@
 	Variable : vName  : String
 	Variable : vMessage : String
 	Variable : vStatus : String
-	Variable : vProcessedCount : Number: 0
-	Variable : vTotalCount : Number: $$NumItems:SEND_Account_Tally
+	Variable : vProcessedCount : Number : 0
+	Variable : vTotalCount : Number : $$NumItems:SEND_Account_Tally
 
 	06 : Do If: (##vTotalCount = 0) :  Stop Timer: SEND_Account_Timer
 	07 : Do If: (##vTotalCount = 0) :  Log: "No accounts to send"
 	08 : Do If: (##vTotalCount = 0) :  Return
 
 	09 : Stop Timer: SEND_Account_Timer
-	10 : Start Progress: 1 : "Sending All Accounts in Hierarchical Order" : ""
+	10 : Start Progress: $$NumItems:SEND_Account_Tally : "Sending All Accounts" : ""
 
 	11 : Log: "=== SENDING ALL ACCOUNTS ==="
 	12 : Log: "Total accounts to process: " + $$String:##vTotalCount
@@ -43,21 +43,22 @@
 	13 : Walk Collection: SEND_Account
 
 	14 : 	Set: vStatus : $Status
-	15 : 	If: Not $$IsEmpty:##vStatus
+	15 : 	If: ##vStatus
 	16 :		Start Batch Post
 	17 : 		Walk Collection: data
 	18 : 			Increment: vProcessedCount
 	19 : 			Log: "Processing [" + $$String:##vProcessedCount + "/" + $$String:##vTotalCount + "]: " + $name + " (Parent: " + $parent_account + ")"
 	20 : 			Set: vName : $name
 	21 : 			Set: vMessage : $message
-	22 : 			Modify Object: (Ledger, ##vName).WebStatus[1].WebStatus : @@ERPNextResetFlag
-	23 :			Modify Object: (Ledger, ##vName).WebStatus_message[1].WebStatus_message : ##vMessage
-	24 :		End Walk
-	25 : 		End Batch Post
-	26 : 	End If
-	27 : End Walk
+	22 : 			Action: Modify Object : Ledger : ##vName : WebStatus : @@ERPNextResetFlag
+	23 :			Action: Modify Object : Ledger : ##vName : WebStatus_message : ##vMessage
+	24 :			Show Progress: ##vProcessedCount
+	25 :		End Walk
+	26 : 		End Batch Post
+	27 : 	End If
+	28 : End Walk
 
-	28 : Log: "Transfer complete. Processed: " + $$String:##vProcessedCount + " accounts"
+	29 : Log: "Transfer complete. Processed: " + $$String:##vProcessedCount + " accounts"
 	
 
 ;[#Menu: Gateway of Tally]
@@ -105,59 +106,17 @@
 
 [Collection: SEND_Account_Tally]
 
-	Collection: Level1_Accounts, Level2_Accounts, Level3_Accounts, Level4_Accounts, Level5_Accounts
-
-[Collection: Level1_Accounts]
 	Type: Ledger
 	Belongs To: Yes
-	Filter : WebStatus, IsLevel1
+	Filter : WebStatus
 	Fetch: Name, Parent
 	Filter: NonDebtors, NonCreditors
-	Sort: Name
-
-[Collection: Level2_Accounts]
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, IsLevel2
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-	Sort: Name
-
-[Collection: Level3_Accounts]
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, IsLevel3
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-	Sort: Name
-
-[Collection: Level4_Accounts]
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, IsLevel4
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-	Sort: Name
-
-[Collection: Level5_Accounts]
-	Type: Ledger
-	Belongs To: Yes
-	Filter : WebStatus, IsLevel5
-	Fetch: Name, Parent
-	Filter: NonDebtors, NonCreditors
-	Sort: Name
 
 	[System: Formula]
 
 		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
 		NonDebtors : Not $$IsGroupSundryDebtors:$Parent
 		NonCreditors : Not $$IsGroupSundryCreditors:$Parent
-
-		IsLevel1 : $Parent IN ("Assets", "Liabilities", "Capital Account", "Current Assets", "Current Liabilities", "Fixed Assets", "Investments", "Miscellaneous Expenses (ASSET)", "Suspense A/c")
-		IsLevel2 : NOT @@IsLevel1 AND NOT ($Parent Contains ":")
-		IsLevel3 : ($Parent Contains ":") AND NOT ($Parent Contains ":.*:")
-		IsLevel4 : ($Parent Contains ":.*:") AND NOT ($Parent Contains ":.*:.*:")
-		IsLevel5 : $Parent Contains ":.*:.*:"
 
 ;	Filter: Customer_DebugFilter
 ;	
