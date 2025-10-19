@@ -1,4 +1,5 @@
-;; Shivgoraksh - Simple Account Send
+;; Shivgoraksh
+;; Batched Account Send - Max 10 records per batch
 
 
 [Collection: SEND_Account]
@@ -25,64 +26,74 @@
 
 	Variable : vName  : String
 	Variable : vMessage : String
-	Variable: vStatus : String
+	Variable : vStatus : String
+	Variable : vBatchCount : Number: 0
+	Variable : vTotalCount : Number: $$NumItems:SEND_Account_Tally
 
-	06 : Do If: ($$NumItems:SEND_Account_Tally = 0) :  Stop Timer: SEND_Account_Timer
-	07 : Do If: ($$NumItems:SEND_Account_Tally = 0) :  Return
+	06 : Do If: (##vTotalCount = 0) :  Stop Timer: SEND_Account_Timer
+	07 : Do If: (##vTotalCount = 0) :  Log: "No accounts to send"
+	08 : Do If: (##vTotalCount = 0) :  Return
 
-	08 : Stop Timer: SEND_Account_Timer
-	09 : Start Progress: 1 : "Sending Account" : ""
+	09 : Stop Timer: SEND_Account_Timer
+	10 : Start Progress: ##vTotalCount : "Sending Accounts (Max 10 per batch)" : ""
 
-	10 : Walk Collection: SEND_Account
+	11 : Walk Collection: SEND_Account
 
-	12 : Set: vStatus : $Status
-	20 : 	If: $Status
-	22 :	Start Batch Post
-	25 : 		Walk Collection: data
-	26 : 		Log: $name
-	28 : 		Set: vName : $name
-	29 : 		Set: vMessage : $message
-	30 : 			Modify Object: (Ledger, ##vName).WebStatus[1].WebStatus : @@ERPNextResetFlag
-	32 :			Modify Object: (Ledger, ##vName).WebStatus_message[1].WebStatus_message : ##vMessage
-	40 :		End Walk
-	45 : 	End Batch Post
-	50 : 	End If
-	60 : End Walk
+	12 : 	Set: vStatus : $Status
+	13 : 	If: Not $$IsEmpty:##vStatus
+	14 :		Start Batch Post
+	15 : 		Walk Collection: data
+	16 : 			Increment: vBatchCount
+	17 : 			Log: "Processing [" + $$String:##vBatchCount + "]: " + $name
+	18 : 			Set: vName : $name
+	19 : 			Set: vMessage : $message
+	20 : 			Modify Object: (Ledger, ##vName).WebStatus[1].WebStatus : @@ERPNextResetFlag
+	21 :			Modify Object: (Ledger, ##vName).WebStatus_message[1].WebStatus_message : ##vMessage
+	22 :			Show Progress: ##vBatchCount
+	23 :		End Walk
+	24 : 		End Batch Post
+	25 : 	End If
+	26 : End Walk
 
-	65 : Do If: ($$NumItems:SEND_Account_Tally > 0 and Not $$IsEmpty:##vStatus) :  Start Timer: SEND_Account_Timer : 1
+	27 : Log: "Batch complete. Processed: " + $$String:##vBatchCount + " accounts"
+	28 : Do If: ($$NumItems:SEND_Account_Tally > 0) :  Start Timer: SEND_Account_Timer : 2
+	
 
+;[#Menu: Gateway of Tally]
+;	
+;	Add: Item: Request - Customer: Display: SEND_Customer
 
 [Report : SEND_Account]
-
+	
 	Form: SEND_Account
-
+	
 	[Form: SEND_Account]
-
+		
 		Part: SEND_Account
 		Delete: XMLTag
 
 	[Part: SEND_Account]
-
+		
 		Line: SEND_Account
 		Repeat: SEND_Account : SEND_Account_Tally
 		Scroll: Vertical
-
+		
 		[Line: SEND_Account]
 
 			Field: SEND_Account_name, SEND_Account_doctype, SEND_Account_group
 			Field: SEND_company
 
 			JSONTag: "data"
-			Empty: $$Line > @@RecordsLimit
-
+			Empty: $$Line > 10
+						
 			[Field: SEND_Account_name]
-
+				
 				Set as: $Name
 				JSONTag: "account_name"
-
-
+				
+				
 			[Field: SEND_Account_doctype]
-
+				
 				Set as: "Account"
 				JSONTag: "doctype"
 
@@ -91,17 +102,21 @@
 				Set as: $Parent + " - " + @@EnableERPNextCmpAbbr
 				JSONTag : "parent_account"
 
-
 [Collection: SEND_Account_Tally]
-
+	
 	Type: Ledger
 	Belongs To: Yes
 	Filter : WebStatus
 	Fetch: Name, Parent
 	Filter: NonDebtors, NonCreditors
-
+	
 	[System: Formula]
-
-		WebStatus : $WebStatus = "Push" OR $WebStatus = "Repush"
+		
 		NonDebtors : Not $$IsGroupSundryDebtors:$Parent
 		NonCreditors : Not $$IsGroupSundryCreditors:$Parent
+
+;	Filter: Customer_DebugFilter
+;	
+;	[System: Formula]
+;		
+;		Customer_DebugFilter: $Name IN ("2N 2N Enterprises, Hata Bharandi", "3 Star Electrical, Umarkot")
