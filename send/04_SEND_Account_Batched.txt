@@ -1,0 +1,189 @@
+;; Shivgoraksh
+;; Batched Account Send - Sends accounts in batches of 10 with progress tracking
+
+
+[Collection: SEND_Account]
+
+	Export Header	: "Accept: application/json"
+	Export Header	: "Accept-Charset: utf-8"
+	Export Header	: "Authorization: " + "token " + @@AuthToken
+
+	Data Source: HTTP JSON: @@ERPNextHost + '/api/method/express_tally.receive_tally.account'
+
+	RemoteRequest: SEND_Account : UTF8
+	JSON Object Path: "message:1"
+
+
+[Function: SEND_Account_Start]
+
+	Variable: vBatchSize : Number: 10
+	Variable: vCurrentBatch : Number: 0
+	Variable: vTotalRecords : Number: $$NumItems:SEND_Account_Tally
+	Variable: vTotalBatches : Number: $$RoundUp:(##vTotalRecords / ##vBatchSize)
+
+	10 : Log: "Starting Account Send: " + $$String:##vTotalRecords + " records in " + $$String:##vTotalBatches + " batches"
+	20 : Set: vCurrentBatch : 1
+	30 : Start Timer: SEND_Account_Timer : 1
+
+
+[System: Events]
+
+	SEND_Account_Timer : Timer: True: Call: SEND_Account_Batch
+
+
+[Function: SEND_Account_Batch]
+
+	Variable : vName  : String
+	Variable : vMessage : String
+	Variable : vStatus : String
+	Variable : vBatchStart : Number
+	Variable : vBatchEnd : Number
+	Variable : vProcessedCount : Number: 0
+	Variable : vSuccessCount : Number: 0
+	Variable : vFailureCount : Number: 0
+	Variable : vRetryCount : Number: 0
+	Variable : vMaxRetries : Number: 3
+	Variable : vBatchRetryCount : Number: 0
+
+	;; Check if all batches are processed
+	10 : Do If: (##vCurrentBatch > ##vTotalBatches) : Stop Timer: SEND_Account_Timer
+	11 : Do If: (##vCurrentBatch > ##vTotalBatches) : Log: "All batches completed. Success: " + $$String:##vSuccessCount + " Failed: " + $$String:##vFailureCount
+	12 : Do If: (##vCurrentBatch > ##vTotalBatches) : Return
+
+	;; Calculate batch range
+	20 : Set: vBatchStart : ((##vCurrentBatch - 1) * ##vBatchSize) + 1
+	30 : Set: vBatchEnd : $$Min:##vBatchStart + ##vBatchSize - 1:##vTotalRecords
+
+	;; Stop timer during processing
+	35 : Stop Timer: SEND_Account_Timer
+
+	;; Show progress
+	40 : Start Progress: ##vTotalBatches : "Sending Account Batch " + $$String:##vCurrentBatch + " of " + $$String:##vTotalBatches : "Processing records " + $$String:##vBatchStart + " to " + $$String:##vBatchEnd
+
+	;; Process batch with retry logic
+	45 : Set: vBatchRetryCount : 0
+
+	50 : Label: RetryBatch
+	51 : Set: vBatchRetryCount : ##vBatchRetryCount + 1
+
+	;; Walk through the collection and process current batch
+	55 : Walk Collection: SEND_Account
+
+	60 : 	Set: vStatus : $Status
+	65 : 	If: Not $$IsEmpty:##vStatus
+	70 : 		Start Batch Post
+	75 : 		Walk Collection: data
+
+	;; Process only records in current batch range
+	80 : 			Increment: vProcessedCount
+	85 : 			If: (##vProcessedCount >= ##vBatchStart AND ##vProcessedCount <= ##vBatchEnd)
+	90 : 				Log: "Processing [" + $$String:##vProcessedCount + "]: " + $name
+	95 : 				Set: vName : $name
+	100: 				Set: vMessage : $message
+
+	;; Update status in Tally
+	105: 				If: Not $$IsEmpty:##vMessage
+	110: 					Modify Object: (Ledger, ##vName).WebStatus[1].WebStatus : @@ERPNextResetFlag
+	115: 					Modify Object: (Ledger, ##vName).WebStatus_message[1].WebStatus_message : ##vMessage
+	120: 					Increment: vSuccessCount
+	125: 				Else:
+	130: 					Increment: vFailureCount
+	135: 				End If
+
+	140: 			End If
+	145: 		End Walk
+	150: 		End Batch Post
+	155: 	End If
+	160: End Walk
+
+	;; Check if batch failed and retry if needed
+	165: If: (##vFailureCount > 0 AND ##vBatchRetryCount < ##vMaxRetries)
+	170: 	Log: "Batch " + $$String:##vCurrentBatch + " failed. Retrying (" + $$String:##vBatchRetryCount + "/" + $$String:##vMaxRetries + ")..."
+	175: 	Set: vFailureCount : 0
+	180: 	Set: vSuccessCount : 0
+	185: 	Set: vProcessedCount : 0
+	190: 	Goto: RetryBatch
+	195: End If
+
+	;; Log batch completion
+	200: Log: "Batch " + $$String:##vCurrentBatch + " completed. Success: " + $$String:##vSuccessCount + " Failed: " + $$String:##vFailureCount
+
+	;; Move to next batch
+	205: Increment: vCurrentBatch
+
+	;; Add delay between batches to avoid overwhelming the server
+	210: Sleep: 1000
+
+	;; Continue with next batch if there are more records
+	215: Do If: (##vCurrentBatch <= ##vTotalBatches) : Start Timer: SEND_Account_Timer : 2
+
+
+;; Report definition remains the same
+[Report : SEND_Account]
+
+	Form: SEND_Account
+
+	[Form: SEND_Account]
+
+		Part: SEND_Account
+		Delete: XMLTag
+
+	[Part: SEND_Account]
+
+		Line: SEND_Account
+		Repeat: SEND_Account : SEND_Account_Tally_Batch
+		Scroll: Vertical
+
+		[Line: SEND_Account]
+
+			Field: SEND_Account_name, SEND_Account_doctype, SEND_Account_group
+			Field: SEND_company
+
+			JSONTag: "data"
+			;; Process only current batch items
+			Empty: $$Line < ##vBatchStart OR $$Line > ##vBatchEnd
+
+			[Field: SEND_Account_name]
+
+				Set as: $Name
+				JSONTag: "account_name"
+
+
+			[Field: SEND_Account_doctype]
+
+				Set as: "Account"
+				JSONTag: "doctype"
+
+			[Field: SEND_Account_group]
+
+				Set as: $Parent + " - " + @@EnableERPNextCmpAbbr
+				JSONTag : "parent_account"
+
+
+;; Collection for current batch
+[Collection: SEND_Account_Tally_Batch]
+
+	Type: Ledger
+	Belongs To: Yes
+	Filter : WebStatus
+	Fetch: Name, Parent
+	Filter: NonDebtors, NonCreditors
+
+
+[Collection: SEND_Account_Tally]
+
+	Type: Ledger
+	Belongs To: Yes
+	Filter : WebStatus
+	Fetch: Name, Parent
+	Filter: NonDebtors, NonCreditors
+
+
+[System: Formula]
+
+	NonDebtors : Not $$IsGroupSundryDebtors:$Parent
+	NonCreditors : Not $$IsGroupSundryCreditors:$Parent
+
+	;; Helper function for rounding up
+	RoundUp : $$Number:$$IntPart:$1 + If:($$Number:$1 > $$Number:$$IntPart:$1) Then 1 Else 0
+	Min : If:($1 < $2) Then $1 Else $2
